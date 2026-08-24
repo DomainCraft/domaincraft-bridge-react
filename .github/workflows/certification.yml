@@ -1,0 +1,80 @@
+# DomainCraft Bridge Certification (React glue smoke) — CI Template
+#
+# react-rest is a thin adapter over the shared `ts-core` bridge. The TypeScript
+# *contract* (types, wire format, filters, permissions) is certified by the
+# per-language TCK that lives in the `domaincraft-bridge-ts-core` repository (and
+# the client layer by `domaincraft-bridge-ts-client`); this workflow only proves
+# the React *glue* — the TanStack Query hooks and auth hooks — still compiles
+# against the certified core.
+#
+# It checks out ts-core alongside this repo (so `extends: ts-core` resolves via
+# the monorepo sibling fallback), generates the composed client from
+# kitchen-sink.yaml, then runs `tsc --noEmit` on the output.
+name: Bridge Certification (React glue smoke)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CORE_VERSION: main
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout the adapter bridge under test.
+      - name: Checkout Bridge
+        uses: actions/checkout@v4
+
+      # 2. Checkout the base bridge (`extends: ts-core` resolves via the
+      #    monorepo sibling fallback — the directory name must equal the
+      #    registry repo name).
+      - name: Checkout ts-core
+        uses: actions/checkout@v4
+        with:
+          repository: DomainCraft/domaincraft-bridge-ts-core
+          path: domaincraft-bridge-ts-core
+          ref: ${{ env.CORE_VERSION == 'main' && 'main' || env.CORE_VERSION }}
+
+      # 3. Checkout the DomainCraft core (compliance-suite + kitchen-sink).
+      - name: Checkout Core
+        uses: actions/checkout@v4
+        with:
+          repository: DomainCraft/DomainCraft
+          path: core
+          ref: ${{ env.CORE_VERSION }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install DomainCraft CLI
+        run: |
+          go install github.com/DomainCraft/DomainCraft/cmd/domaincraft@${{ env.CORE_VERSION == 'main' && 'latest' || env.CORE_VERSION }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Generate the composed client (ts-core + react-rest glue).
+      - name: Generate Code
+        run: |
+          domaincraft generate \
+            --domain ./core/compliance-suite/kitchen-sink.yaml \
+            --bridge . \
+            --output ./generated \
+            --non-interactive
+
+      # The generated package.json/tsconfig are part of the scaffold; typecheck them.
+      - name: Install Dependencies
+        working-directory: ./generated
+        run: npm install
+
+      - name: Typecheck Glue
+        working-directory: ./generated
+        run: npx tsc --noEmit
