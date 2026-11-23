@@ -1,5 +1,13 @@
 # DomainCraft React — `react-rest`
 
+[![Moved to the monorepo](https://img.shields.io/badge/moved%20to-Fellmonkey%2FDomainCraft-orange)](https://github.com/Fellmonkey/DomainCraft)
+> This bridge is now developed at Fellmonkey/DomainCraft under bridges/(family)/(layer).
+> 
+> This repository is frozen and kept only so existing owner/repo references keep working.
+> 
+> Use domaincraft generate --bridge (bridge-id) from the new release.
+
+
 The framework layer. TanStack Query hooks and auth — on top of the certified client.
 
 `react-rest` is a thin adapter over `ts-client` (which builds on `ts-core`). It declares `extends: ts-client`, so `ts-core` generates the language core (types, query, permissions), `ts-client` adds Zod, fetch and CRUD, and `react-rest` adds only the React glue: TanStack Query hooks and auth hooks.
